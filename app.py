@@ -2,7 +2,7 @@ from extension import db, migrate, jwt
 from flask import Flask
 from config import Config
 from flask_restful import Api
-from resources.user import CreateUserResource, UserLoginResource
+from resources.user import CreateUserResource, UserLoginResource, UserProfileResource
 from models.user import User
 from utils import hash_password
 
@@ -20,6 +20,7 @@ def register_resources(app):
     api = Api(app)
     api.add_resource(CreateUserResource, "/register")
     api.add_resource(UserLoginResource, "/login")
+    api.add_resource(UserProfileResource, "/users/profile")
 
 
 def create_app():

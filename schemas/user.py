@@ -3,6 +3,8 @@ from passlib.hash import bcrypt
 
 
 class UserSchema(Schema):
+    class Meta:
+        ordered=True
     id = fields.Integer(dump_only=True)
     username = fields.String(required=True)
     email = fields.Email(required=True)
