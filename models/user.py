@@ -12,3 +12,14 @@ class User(db.Model):
     date_created = db.Column(db.DateTime, default=db.func.now())
     date_last_updated = db.Column(db.DateTime, default=db.func.now(), onupdate=db.func.now())
 
+    @classmethod
+    def check_username(cls, username):
+        return cls.query.filter_by(username=username).first()
+
+    @classmethod
+    def check_user_id(cls, user_id):
+        return cls.query.filter_by(id=user_id).first()
+
+    @classmethod
+    def check_email(cls, email):
+        return User.query.filter_by(email=email).first()
