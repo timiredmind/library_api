@@ -1,8 +1,8 @@
-from extension import db, migrate
+from extension import db, migrate, jwt
 from flask import Flask
 from config import Config
 from flask_restful import Api
-from resources.user import CreateUserResource
+from resources.user import CreateUserResource, UserLoginResource
 from models.user import User
 from utils import hash_password
 
@@ -12,11 +12,14 @@ def register_extensions(app):
     db.init_app(app)
     # Initialize migration extension
     migrate.init_app(app, db)
+    # Initialize Flask-JWT-Extended extension
+    jwt.init_app(app)
 
 
 def register_resources(app):
     api = Api(app)
     api.add_resource(CreateUserResource, "/register")
+    api.add_resource(UserLoginResource, "/login")
 
 
 def create_app():
