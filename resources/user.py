@@ -32,7 +32,9 @@ class CreateUserResource(Resource):
         new_user = User(**parsed_data)
         db.session.add(new_user)
         db.session.commit()
-        return UserSchema(exclude=("password", "date_last_updated")).dump(new_user), HTTPStatus.CREATED
+        claims = {"role": new_user.role}
+        access_token = create_access_token(identity=new_user.id, additional_claims=claims)
+        return {"access_token": access_token}, HTTPStatus.OK
 
 
 class UserLoginResource(Resource):
