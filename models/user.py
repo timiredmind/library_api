@@ -11,6 +11,7 @@ class User(db.Model):
     role = db.Column(db.String, default="user")
     date_created = db.Column(db.DateTime, default=db.func.now())
     date_last_updated = db.Column(db.DateTime, default=db.func.now(), onupdate=db.func.now())
+    books_borrowed = db.relationship("Books_Borrowed", backref="user")
 
     @classmethod
     def check_username(cls, username):
