@@ -30,16 +30,18 @@ class Book(db.Model):
     num_of_pages = db.Column(db.Integer, nullable=False)
     isbn = db.Column(db.String, nullable=False)
     isbn13 = db.Column(db.String, nullable=False)
+    year_published = db.Column(db.Integer, nullable=False)
     author_id = db.Column(db.Integer, db.ForeignKey("authors.id"), nullable=False)
     publisher_id = db.Column(db.Integer, db.ForeignKey("publishers.id"), nullable=False)
     category_id = db.Column(db.Integer, db.ForeignKey("categories.id"), nullable=False)
     date_donated = db.Column(db.DateTime, default=db.func.now())
     cover_url = db.Column(db.String)
     is_available = db.Column(db.Boolean, default=True)
-    book_loan_history = db.relationship("Books_Borrowed", backref="books")
+    book_loan_history = db.relationship("BooksBorrowed", backref="books")
+    language = db.Column(db.String, nullable=False)
 
 
-class Books_Borrowed(db.Model):
+class BooksBorrowed(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
     book_id = db.Column(db.Integer, db.ForeignKey("books.id"), nullable=True)
