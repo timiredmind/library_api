@@ -1,12 +1,13 @@
 from flask_restful import Resource
 from flask import request
-from schemas.user import UserSchema
+from schemas.book import UserSchema, UserSchema2
 from marshmallow import ValidationError
 from http import HTTPStatus
 from models.user import User
 from extension import db
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from utils import verify_password
+
 
 class CreateUserResource(Resource):
     def post(self):
@@ -65,7 +66,7 @@ class UserProfileResource(Resource):
     def get(self):
         user_id = get_jwt_identity()
         user = User.check_user_id(user_id=user_id)
-        return UserSchema(exclude=("password", "date_last_updated")).dump(user), HTTPStatus.OK
+        return UserSchema2(exclude=("password", "date_last_updated")).dump(user), HTTPStatus.OK
 
     @jwt_required()
     def patch(self):

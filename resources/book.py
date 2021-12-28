@@ -20,4 +20,3 @@ class BookResource(Resource):
             return {"message": "Book not found!"}, HTTPStatus.NOT_FOUND
 
         return BookSchema().dump(book), HTTPStatus.OK
-
