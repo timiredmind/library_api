@@ -5,6 +5,7 @@ from flask_restful import Api
 from resources.user import CreateUserResource, UserLoginResource, UserProfileResource
 from resources.book import BookCollectionResource, BookResource
 from resources.author import AuthorCollectionResource, AuthorResource
+from resources.publisher import PublisherCollectionResource, PublisherResource
 from models.user import User
 from utils import hash_password
 
@@ -27,6 +28,8 @@ def register_resources(app):
     api.add_resource(BookResource, "/books/<int:book_id>")
     api.add_resource(AuthorCollectionResource, "/authors")
     api.add_resource(AuthorResource, "/authors/<int:author_id>")
+    api.add_resource(PublisherCollectionResource, "/publishers")
+    api.add_resource(PublisherResource, "/publishers/<int:publisher_id>")
 
 
 def create_app():

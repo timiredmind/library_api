@@ -16,4 +16,6 @@ class AuthorResource(Resource):
     @jwt_required()
     def get(self, author_id):
         author = Author.query.filter_by(id=author_id).first()
+        if not author:
+            return {"message": "Author not found!"}, HTTPStatus.NOT_FOUND
         return AuthorSchema().dump(author), HTTPStatus.OK
