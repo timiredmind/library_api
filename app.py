@@ -6,6 +6,7 @@ from resources.user import CreateUserResource, UserLoginResource, UserProfileRes
 from resources.book import BookCollectionResource, BookResource
 from resources.author import AuthorCollectionResource, AuthorResource
 from resources.publisher import PublisherCollectionResource, PublisherResource
+from resources.category import CategoryResource, CategoryCollectionResource
 from models.user import User
 from utils import hash_password
 
@@ -30,6 +31,8 @@ def register_resources(app):
     api.add_resource(AuthorResource, "/authors/<int:author_id>")
     api.add_resource(PublisherCollectionResource, "/publishers")
     api.add_resource(PublisherResource, "/publishers/<int:publisher_id>")
+    api.add_resource(CategoryCollectionResource, "/categories")
+    api.add_resource(CategoryResource, "/categories/<int:category_id>")
 
 
 def create_app():

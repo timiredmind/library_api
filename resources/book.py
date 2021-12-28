@@ -19,4 +19,4 @@ class BookResource(Resource):
         if not book:
             return {"message": "Book not found!"}, HTTPStatus.NOT_FOUND
 
-        return BookSchema().dump(book), HTTPStatus.OK
+        return BookSchema(exclude=["id"]).dump(book), HTTPStatus.OK

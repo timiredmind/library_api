@@ -18,4 +18,4 @@ class AuthorResource(Resource):
         author = Author.query.filter_by(id=author_id).first()
         if not author:
             return {"message": "Author not found!"}, HTTPStatus.NOT_FOUND
-        return AuthorSchema().dump(author), HTTPStatus.OK
+        return AuthorSchema(exclude=["id"]).dump(author), HTTPStatus.OK

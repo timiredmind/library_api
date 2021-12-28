@@ -18,4 +18,5 @@ class PublisherResource(Resource):
         publisher = Publisher.query.filter_by(id=publisher_id).first()
         if not publisher:
             return {"message": "Publisher not found!"}, HTTPStatus.NOT_FOUND
-        return PublisherSchema().dump(publisher), HTTPStatus.OK
+        
+        return PublisherSchema(exclude=["id"]).dump(publisher), HTTPStatus.OK
