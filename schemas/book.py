@@ -1,5 +1,6 @@
 from marshmallow import fields, Schema
 from passlib.hash import bcrypt
+from .pagination import PaginationSchema
 
 
 class UserSchema(Schema):
@@ -59,7 +60,7 @@ class BookSchema(Schema):
     year_published = fields.Int(required=True)
     cover_url = fields.URL()
     is_available = fields.Bool(dump_only=True)
-    author_ = fields.Nested(AuthorCollectionSchema(exclude=["id"]), attribute="author", dump_only=True)
+    author_ = fields.Nested(AuthorCollectionSchema(only=["name"]), attribute="author", dump_only=True)
     publisher_ = fields.Nested(PublisherCollectionSchema(exclude=["id"]), attribute="publisher", dump_only=True)
     category_ = fields.Nested(CategoryCollectionSchema(exclude=["id"]), attribute="category", dump_only=True)
     date_donated = fields.DateTime(dump_only=True)
@@ -90,3 +91,19 @@ class PublisherSchema(PublisherCollectionSchema):
 
 class UserSchema2(UserSchema):
     books_borrowed = fields.Nested(BooksBorrowedSchema(many=True, exclude=["id"]), attribute="books_borrowed")
+
+
+class PaginatedBookSchema(PaginationSchema):
+    books = fields.Nested(BookSchema(only=["id", "name", "author_", "cover_url"], many=True), attribute="items")
+
+
+class PaginatedAuthorSchema(PaginationSchema):
+    authors = fields.Nested(AuthorCollectionSchema(many=True, only=["id", "name"]), attribute="items")
+
+
+class PaginatedCategorySchema(PaginationSchema):
+    categories = fields.Nested(CategoryCollectionSchema(many=True), attribute="items")
+
+
+class PaginatedPublisherSchema(PaginationSchema):
+    publishers = fields.Nested(PublisherCollectionSchema(many=True), attribute="items")

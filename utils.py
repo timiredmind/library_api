@@ -2,6 +2,8 @@ from passlib.hash import bcrypt
 from flask_jwt_extended import get_jwt, verify_jwt_in_request
 from functools import wraps
 from http import HTTPStatus
+from urllib.parse import urlencode
+from flask import request
 
 
 def hash_password(plain_text):
@@ -27,3 +29,9 @@ def admin_required():
         return decorator
 
     return wrapper
+
+
+def generate_url_link(page):
+    query_args = request.args.to_dict()
+    query_args["page"] = page
+    return f"{request.base_url}?{urlencode(query_args)}"
