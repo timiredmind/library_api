@@ -3,7 +3,7 @@ from flask import Flask
 from config import Config
 from flask_restful import Api
 from resources.user import CreateUserResource, UserLoginResource, UserProfileResource
-from resources.book import BookCollectionResource, BookResource
+from resources.book import BookCollectionResource, BookResource, BorrowBookResource, ReturnBookResource
 from resources.author import AuthorCollectionResource, AuthorResource
 from resources.publisher import PublisherCollectionResource, PublisherResource
 from resources.category import CategoryResource, CategoryCollectionResource
@@ -33,6 +33,8 @@ def register_resources(app):
     api.add_resource(PublisherResource, "/publishers/<int:publisher_id>")
     api.add_resource(CategoryCollectionResource, "/categories")
     api.add_resource(CategoryResource, "/categories/<int:category_id>")
+    api.add_resource(BorrowBookResource, "/books/<int:book_id>/borrow")
+    api.add_resource(ReturnBookResource, "/books/<int:book_id>/return")
 
 
 def create_app():

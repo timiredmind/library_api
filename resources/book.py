@@ -1,12 +1,14 @@
-from flask_restful import Resource
-from models.book import Book
-from flask_jwt_extended import jwt_required
-from schemas.book import PaginatedBookSchema, BookSchema
-from http import HTTPStatus
-from webargs.flaskparser import use_kwargs
-from webargs import fields
-from sqlalchemy import asc, desc, or_, and_
 from datetime import datetime
+from http import HTTPStatus
+from extension import db
+from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_restful import Resource
+from sqlalchemy import asc, desc, and_
+from webargs import fields
+from webargs.flaskparser import use_kwargs
+from models.user import User
+from models.book import Book, BooksBorrowed
+from schemas.book import PaginatedBookSchema, BookSchema
 
 
 class BookCollectionResource(Resource):
@@ -46,4 +48,47 @@ class BookResource(Resource):
         if not book:
             return {"message": "Book not found!"}, HTTPStatus.NOT_FOUND
 
-        return BookSchema(exclude=["id"]).dump(book), HTTPStatus.OK
+        return BookSchema(exclude=["id", "loan_history", "date_donated", "is_available"]).dump(book), HTTPStatus.OK
+
+
+class BorrowBookResource(Resource):
+    @jwt_required()
+    def patch(self, book_id):
+        book = Book.query.filter_by(id=book_id).first()
+        if not book:
+            return {"message": "Book not found."}, HTTPStatus.NOT_FOUND
+
+        if book.is_available is False:
+            return {"message": "Book is currently unavailable"}, HTTPStatus.NOT_FOUND
+
+        book.is_available = False
+        user_id = get_jwt_identity()
+        user = User.check_user_id(user_id)
+        loan_detail = BooksBorrowed()
+        loan_detail.book = book
+        loan_detail.user = user
+        db.session.add(loan_detail)
+        db.session.commit()
+        return "", HTTPStatus.NO_CONTENT
+
+
+class ReturnBookResource(Resource):
+    @jwt_required()
+    def patch(self, book_id):
+        book = Book.query.filter_by(id=book_id).first()
+        if not book:
+            return {"message": "Book not found."}, HTTPStatus.NOT_FOUND
+        user_id = get_jwt_identity()
+        loan_detail = BooksBorrowed.query.filter(
+            and_(BooksBorrowed.user_id == user_id, BooksBorrowed.book_id == book_id)).filter_by(
+            date_returned=None).first()
+
+        if not loan_detail:
+            return {"message": "Unauthorized Access"}, HTTPStatus.UNAUTHORIZED
+
+        book.is_available = True
+        loan_detail.date_returned = datetime.now()
+        db.session.commit()
+        return {"message": "Book returned !"}, HTTPStatus.OK
+
+

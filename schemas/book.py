@@ -20,8 +20,10 @@ class UserSchema(Schema):
 
 
 class BookLoanHistorySchema(Schema):
+    class Meta:
+        ordered = True
     id = fields.Int(dump_only=True)
-    user = fields.Nested(UserSchema(only=["username"]), attribute="user", dump_only=True)
+    boorowed_by = fields.Nested(UserSchema(only=["username"]), attribute="user", dump_only=True)
     date_borrowed = fields.DateTime(dump_only=True)
     date_returned = fields.DateTime(dump_only=True)
 
@@ -71,6 +73,8 @@ class BookSchema(Schema):
 
 
 class BooksBorrowedSchema(Schema):
+    class Meta:
+        ordered = True
     id = fields.Int(dump_only=True)
     book = fields.Nested(BookSchema(only=["name"]), attribute="book", dump_only=True)
     date_borrowed = fields.DateTime(dump_only=True)

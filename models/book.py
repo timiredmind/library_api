@@ -37,7 +37,7 @@ class Book(db.Model):
     date_donated = db.Column(db.DateTime, default=db.func.now())
     cover_url = db.Column(db.String)
     is_available = db.Column(db.Boolean, default=True)
-    book_loan_history = db.relationship("BooksBorrowed", backref="books")
+    book_loan_history = db.relationship("BooksBorrowed", backref="book")
     language = db.Column(db.String, nullable=False)
 
 
