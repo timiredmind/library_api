@@ -111,3 +111,9 @@ class PaginatedCategorySchema(PaginationSchema):
 
 class PaginatedPublisherSchema(PaginationSchema):
     publishers = fields.Nested(PublisherCollectionSchema(many=True), attribute="items")
+
+
+class PaginatedUserSchema(PaginationSchema):
+    users = fields.Nested(UserSchema(many=True, only=["id", "username"]), attribute="items")
+
+

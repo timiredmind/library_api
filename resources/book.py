@@ -84,7 +84,7 @@ class ReturnBookResource(Resource):
             date_returned=None).first()
 
         if not loan_detail:
-            return {"message": "Unauthorized Access"}, HTTPStatus.UNAUTHORIZED
+            return {"message": "Unauthorized Access"}, HTTPStatus.CONFLICT
 
         book.is_available = True
         loan_detail.date_returned = datetime.now()
