@@ -1,8 +1,10 @@
-from utils import admin_required
+from utils import admin_required,generate_token
 from flask_restful import Resource
 from models.user import User
 from models.book import Book, Category, Publisher, Author
-from schemas.book import PaginatedUserSchema, UserSchema2, PaginatedBookSchema
+from schemas.book import PaginatedUserSchema, UserSchema2, PaginatedBookSchema, PaginatedAuthorSchema, \
+    AuthorCollectionSchema, AuthorSchema, PaginatedPublisherSchema, PublisherCollectionSchema, PublisherSchema, \
+    PaginatedCategorySchema, CategoryCollectionSchema, CategorySchema
 from webargs.flaskparser import use_kwargs
 from webargs import fields
 from sqlalchemy import asc, desc, and_
@@ -12,6 +14,34 @@ from datetime import datetime
 from flask import request
 from marshmallow import ValidationError
 from schemas.book import BookSchema
+from flask_jwt_extended import create_access_token
+
+
+class CreateAdminUserResource(Resource):
+    def post(self):
+        json_data = request.get_json()
+        try:
+            parsed_data = UserSchema2(exclude=["books_borrowed"]).load(json_data)
+        except ValidationError as err:
+            return {"message": "Validation Error",
+                    "errors": err.messages}, HTTPStatus.BAD_REQUEST
+        username = parsed_data.get("username")
+        email = parsed_data.get("email")
+
+        if User.check_username(username):
+            return {"message": "Invalid username or username is associated to a different user."}, HTTPStatus.CONFLICT
+
+        if User.check_email(email):
+            return {
+                       "message": "Invalid email address or email address is associated to a different user."
+                   }, HTTPStatus.CONFLICT
+
+        new_user = User(role="admin", **parsed_data)
+        db.session.add(new_user)
+        db.session.commit()
+        claims = {"role": new_user.role}
+        access_token = create_access_token(identity=new_user.id, additional_claims=claims)
+        return {"access_token": access_token}, HTTPStatus.OK
 
 
 class AdminUsersCollectionResource(Resource):
@@ -92,7 +122,7 @@ class AdminBooksCollectionResource(Resource):
         except ValidationError as errors:
             return {"message": "Validation Error",
                     "errors": [errors.messages]
-                   }, HTTPStatus.BAD_REQUEST
+                    }, HTTPStatus.BAD_REQUEST
 
         name = parsed_data.get("name")
         num_of_pages = parsed_data.get("num_of_pages")
@@ -150,9 +180,9 @@ class AdminBookResource(Resource):
 
         except ValidationError as err:
             return {
-                "messages": "Validation Error",
-                "errors": [err.messages]
-            }, HTTPStatus.BAD_REQUEST
+                       "messages": "Validation Error",
+                       "errors": [err.messages]
+                   }, HTTPStatus.BAD_REQUEST
 
         book.name = parsed_data.get("name") or book.name
         book.year_published = parsed_data.get("year_published") or book.year_published
@@ -165,3 +195,234 @@ class AdminBookResource(Resource):
         db.session.commit()
         return BookSchema().dump(book), HTTPStatus.OK
 
+
+class AdminAuthorCollectionResource(Resource):
+    @admin_required()
+    @use_kwargs(
+        {
+            "page": fields.Integer(missing=1),
+            "per_page": fields.Integer(missing=5),
+            "order": fields.String(missing="asc"),
+            "sort": fields.String(missing="id"),
+            "q": fields.String(missing="")
+        }, location="querystring")
+    def get(self, page, per_page, order, sort, q):
+        keyword = f"%{q}%"
+        if sort not in ["id", "name"]:
+            sort = "id"
+        if order != "desc":
+            sort_logic = asc(getattr(Author, sort))
+        else:
+            sort_logic = desc(getattr(Author, sort))
+        authors = Author.query.filter(Author.name.ilike(keyword)).order_by(sort_logic).paginate(page=page,
+                                                                                                per_page=per_page)
+        return PaginatedAuthorSchema().dump(authors), HTTPStatus.OK
+
+    @admin_required()
+    def post(self):
+        json_data = request.get_json()
+        try:
+            parsed_json = AuthorCollectionSchema().load(json_data)
+        except ValidationError as err:
+            return {
+                       "message": "Validation Error",
+                       "errors": [err.messages]
+                   }, HTTPStatus.BAD_REQUEST
+
+        name = parsed_json.get("name")
+        description = parsed_json.get("description")
+        new_author = Author(name=name, description=description)
+        db.session.add(new_author)
+        db.session.commit()
+
+        return AuthorCollectionSchema().dump(new_author), HTTPStatus.CREATED
+
+
+class AdminAuthorResource(Resource):
+    @admin_required()
+    def get(self, author_id):
+        author = Author.query.filter_by(id=author_id).first()
+        if not author:
+            return {"message": "Author not found"}, HTTPStatus.NOT_FOUND
+
+        return AuthorSchema(exclude=["id"]).dump(author), HTTPStatus.OK
+
+    @admin_required()
+    def patch(self, author_id):
+        author = Author.query.filter_by(id=author_id).first()
+        if not author:
+            return {"message": "Author not found"}, HTTPStatus.NOT_FOUND
+
+        json_data = request.get_json()
+        try:
+            parsed_data = AuthorCollectionSchema(partial=True).load(json_data)
+        except ValidationError as err:
+            return {"message": "Validation Error",
+                    "error": [err.messages]}, HTTPStatus.BAD_REQUEST
+
+        author.name = parsed_data.get("name") or author.name
+        author.description = parsed_data.get("description") or author.description
+        db.session.commit()
+        return AuthorSchema(exclude=["id"]).dump(author), HTTPStatus.OK
+
+    @admin_required()
+    def delete(self, author_id):
+        author = Author.query.filter_by(id=author_id).first()
+        if not author:
+            return {"message": "Author not found"}, HTTPStatus.NOT_FOUND
+
+        db.session.delete(author)
+        db.session.commit()
+        return "", HTTPStatus.NO_CONTENT
+
+
+class AdminPublisherCollectionResource(Resource):
+    @admin_required()
+    @use_kwargs({
+        "page": fields.Integer(missing=1),
+        "per_page": fields.Integer(missing=5),
+        "order": fields.String(missing="asc"),
+        "sort": fields.String(missing="id"),
+        "q": fields.String(missing="")
+    }, location="querystring")
+    def get(self, page, per_page, sort, order, q):
+        keyword = f"%{q}%"
+        if sort not in ["id", "name"]:
+            sort = "id"
+        if order == "desc":
+            sort_logic = desc(getattr(Publisher, sort))
+        else:
+            sort_logic = asc(getattr(Publisher, sort))
+        publishers = Publisher.query.filter(Publisher.name.ilike(keyword)).order_by(sort_logic).paginate(page=page,
+                                                                                                         per_page=per_page)
+        return PaginatedPublisherSchema().dump(publishers), HTTPStatus.OK
+
+    @admin_required()
+    def post(self):
+        json_data = request.get_json()
+        try:
+            parsed_data = PublisherCollectionSchema().load(json_data)
+        except ValidationError as err:
+            return {
+                       "message": "Validation Error",
+                       "errors": err.messages
+                   }, HTTPStatus.NOT_FOUND
+
+        new_publisher = Publisher(**parsed_data)
+        db.session.add(new_publisher)
+        db.session.commit()
+        return PublisherCollectionSchema().dump(new_publisher), HTTPStatus.CREATED
+
+
+class AdminPublisherResource(Resource):
+    @admin_required()
+    def get(self, publisher_id):
+        publisher = Publisher.query.filter_by(id=publisher_id).first()
+        if not publisher:
+            return {"message": "Publisher not found"}, HTTPStatus.NOT_FOUND
+
+        return PublisherSchema().dump(publisher), HTTPStatus.OK
+
+    @admin_required()
+    def patch(self, publisher_id):
+        publisher = Publisher.query.filter_by(id=publisher_id).first()
+        if not publisher:
+            return {"message": "Publisher not found"}, HTTPStatus.NOT_FOUND
+
+        json_data = request.get_json()
+        try:
+            parsed_data = PublisherCollectionSchema(partial=True).load(json_data)
+        except ValidationError as err:
+            return {"message": "Validation Error",
+                    "errors": err.messages}, HTTPStatus.BAD_REQUEST
+
+        publisher.name = parsed_data.get("name") or publisher.name
+        db.session.commit()
+        return PublisherSchema(exclude=["id"]).dump(publisher), HTTPStatus.OK
+
+    @admin_required()
+    def delete(self, publisher_id):
+        publisher = Publisher.query.filter_by(id=publisher_id).first()
+        if not publisher:
+            return {"message": "Publisher not found"}, HTTPStatus.OK
+
+        db.session.delete(publisher)
+        db.session.commit()
+        return "", HTTPStatus.NO_CONTENT
+
+
+class AdminCategoriesCollectionResource(Resource):
+    @admin_required()
+    @use_kwargs(
+        {
+            "page": fields.Integer(missing=1),
+            "per_page": fields.Integer(missing=5),
+            "sort": fields.String(missing="id"),
+            "order": fields.String(missing="asc"),
+            "q": fields.String(missing="")
+        }, location="querystring")
+    def get(self, page, per_page, sort, order, q):
+        keyword = f"%{q}%"
+        if sort not in ["id", "name"]:
+            sort = "id"
+        if order == "desc":
+            sort_logic = desc(getattr(Category, sort))
+        else:
+            sort_logic = asc(getattr(Category, sort))
+
+        categories = Category.query.filter(Category.name.ilike(keyword)).order_by(sort_logic).paginate(page=page,
+                                                                                                       per_page=per_page)
+        return PaginatedCategorySchema().dump(categories), HTTPStatus.OK
+
+    @admin_required()
+    def post(self):
+        json_data = request.get_json()
+        try:
+            parsed_data = CategoryCollectionSchema().load(json_data)
+        except ValidationError as err:
+            return {
+                       "message": "Validation Error",
+                       "errors": err.messages
+                   }, HTTPStatus.BAD_REQUEST
+
+        new_category = Category(**parsed_data)
+        db.session.add(new_category)
+        db.session.commit()
+        return CategoryCollectionSchema().dump(new_category), HTTPStatus.CREATED
+
+
+class AdminCategoryResource(Resource):
+    @admin_required()
+    def get(self, category_id):
+        category = Category.query.filter_by(id=category_id).first()
+        if not category:
+            return {"message": "Category not found"}, HTTPStatus.NOT_FOUND
+
+        return CategorySchema().dump(category), HTTPStatus.OK
+
+    @admin_required()
+    def patch(self, category_id):
+        category = Category.query.filter_by(id=category_id).first()
+        if not category:
+            return {"message": "Category not found"}, HTTPStatus.NOT_FOUND
+
+        json_data = request.get_json()
+        try:
+            parsed_data = CategoryCollectionSchema(partial=True).load(json_data)
+        except ValidationError as err:
+            return {"message": "Validation Error",
+                    "errors": err.messages}, HTTPStatus.BAD_REQUEST
+
+        category.name = parsed_data.get("name") or category.name
+        db.session.commit()
+        return CategoryCollectionSchema().dump(category), HTTPStatus.OK
+
+    @admin_required()
+    def delete(self, category_id):
+        category = Category.query.filter_by(id=category_id).first()
+        if not category:
+            return {"message": "Category not found"}, HTTPStatus.NOT_FOUND
+
+        db.session.delete(category)
+        db.session.commit()
+        return "", HTTPStatus.NO_CONTENT

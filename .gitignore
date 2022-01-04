@@ -5,3 +5,4 @@ migrations/
 __pycache__/
 *.csv
 *csv.py
+mailgun.py

@@ -1,15 +1,15 @@
 from extension import db, migrate, jwt
-from flask import Flask
+from flask import Flask, url_for
 from config import Config
 from flask_restful import Api
-from resources.user import CreateUserResource, UserLoginResource, UserProfileResource
+from resources.user import CreateUserResource, UserLoginResource, UserProfileResource, UserActivationResource
 from resources.book import BookCollectionResource, BookResource, BorrowBookResource, ReturnBookResource
 from resources.author import AuthorCollectionResource, AuthorResource
 from resources.publisher import PublisherCollectionResource, PublisherResource
 from resources.category import CategoryResource, CategoryCollectionResource
-from resources.admin import AdminUsersCollectionResource, AdminUsersResource, AdminBooksCollectionResource, AdminBookResource
-from models.user import User
-from utils import hash_password
+from resources.admin import AdminUsersCollectionResource, AdminUsersResource, AdminBooksCollectionResource, \
+    AdminBookResource, AdminAuthorCollectionResource, AdminAuthorResource, AdminPublisherCollectionResource, \
+    AdminPublisherResource, AdminCategoriesCollectionResource, AdminCategoryResource, CreateAdminUserResource
 
 
 def register_extensions(app):
@@ -23,9 +23,10 @@ def register_extensions(app):
 
 def register_resources(app):
     api = Api(app)
-    api.add_resource(CreateUserResource, "/register")
+    api.add_resource(CreateUserResource, "/users/register")
     api.add_resource(UserLoginResource, "/login")
     api.add_resource(UserProfileResource, "/users/profile")
+    api.add_resource(UserActivationResource, "/users/activate/<string:token>")
     api.add_resource(BookCollectionResource, "/books")
     api.add_resource(BookResource, "/books/<int:book_id>")
     api.add_resource(AuthorCollectionResource, "/authors")
@@ -36,10 +37,17 @@ def register_resources(app):
     api.add_resource(CategoryResource, "/categories/<int:category_id>")
     api.add_resource(BorrowBookResource, "/books/<int:book_id>/borrow")
     api.add_resource(ReturnBookResource, "/books/<int:book_id>/return")
+    api.add_resource(CreateAdminUserResource, "/admin/register")
     api.add_resource(AdminUsersCollectionResource, "/admin/users")
     api.add_resource(AdminUsersResource, "/admin/users/<int:user_id>")
     api.add_resource(AdminBooksCollectionResource, "/admin/books")
     api.add_resource(AdminBookResource, "/admin/books/<int:book_id>")
+    api.add_resource(AdminAuthorCollectionResource, "/admin/authors")
+    api.add_resource(AdminAuthorResource, "/admin/authors/<int:author_id>")
+    api.add_resource(AdminPublisherCollectionResource, "/admin/publishers")
+    api.add_resource(AdminPublisherResource, "/admin/publishers/<int:publisher_id>")
+    api.add_resource(AdminCategoriesCollectionResource, "/admin/category")
+    api.add_resource(AdminCategoryResource, "/admin/category/<int:category_id>")
 
 
 def create_app():
@@ -50,20 +58,6 @@ def create_app():
 
     register_extensions(app)
     register_resources(app)
-
-    @app.cli.command("create-admin-user")
-    def create_admin_user():
-        if User.check_username("admin"):
-            print("Admin user already exists.")
-        else:
-            username = "admin"
-            password = hash_password("admin")
-            email = "joshua_oladokun@gmail.com"
-            role = "admin"
-            admin_user = User(username=username, password=password, email=email, role=role)
-            db.session.add(admin_user)
-            db.session.commit()
-            print("Admin user created successfully, the admin username is 'admin' and password is 'admin'")
 
     return app
 
