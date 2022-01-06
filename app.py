@@ -1,4 +1,4 @@
-from extension import db, migrate, jwt, cache
+from extension import db, migrate, jwt, cache, limiter
 from flask import Flask
 from config import Config
 from flask_restful import Api
@@ -20,6 +20,7 @@ def register_extensions(app):
     # Initialize Flask-JWT-Extended extension
     jwt.init_app(app)
     cache.init_app(app)
+    limiter.init_app(app)
 
 
 def register_resources(app):
@@ -45,9 +46,12 @@ def register_resources(app):
     api.add_resource(AdminAuthorCollectionResource, "/admin/authors")
     api.add_resource(AdminAuthorResource, "/admin/authors/<int:author_id>")
     api.add_resource(AdminPublisherCollectionResource, "/admin/publishers")
-    api.add_resource(AdminPublisherResource, "/admin/publishers/<int:publisher_id>")
+    api.add_resource(AdminPublisherResource,
+                     "/admin/publishers/<int:publisher_id>")
     api.add_resource(AdminCategoriesCollectionResource, "/admin/category")
-    api.add_resource(AdminCategoryResource, "/admin/category/<int:category_id>")
+    api.add_resource(
+        AdminCategoryResource,
+        "/admin/category/<int:category_id>")
 
 
 def create_app():
@@ -58,17 +62,6 @@ def create_app():
 
     register_extensions(app)
     register_resources(app)
-
-    @app.before_request
-    def before_request():
-        print("BEFORE REQUEST".center(30, "="))
-        print(cache.cache._cache.keys())
-
-    @app.after_request
-    def after_request(response):
-        print("AFTER REQUEST".center(35, "="))
-        print(cache.cache._cache.keys())
-        return response
 
     return app
 

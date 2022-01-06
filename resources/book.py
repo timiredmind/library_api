@@ -1,6 +1,6 @@
 from datetime import datetime
 from http import HTTPStatus
-from extension import db, cache
+from extension import db, cache, limiter
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_restful import Resource
 from sqlalchemy import asc, desc, and_
@@ -13,6 +13,12 @@ from utils import clear_cache
 
 
 class BookCollectionResource(Resource):
+    decorators = [
+        limiter.limit(
+            "60/minute",
+            methods=["GET"],
+            error_message="Too many message")]
+
     @jwt_required()
     @use_kwargs({
         "page": fields.Integer(missing=1),
@@ -26,10 +32,24 @@ class BookCollectionResource(Resource):
         "min_page_num": fields.Int(missing=0)
     }, location="querystring")
     @cache.cached(query_string=True)
-    def get(self,
-            page, per_page, order, sort, q, max_publication_year, min_publication_year, min_page_num, max_page_num):
+    def get(
+            self,
+            page,
+            per_page,
+            order,
+            sort,
+            q,
+            max_publication_year,
+            min_publication_year,
+            min_page_num,
+            max_page_num):
         keyword = f"%{q}%"
-        if sort not in ["id", "num_of_pages", "date_donated", "year_published", "name"]:
+        if sort not in [
+            "id",
+            "num_of_pages",
+            "date_donated",
+            "year_published",
+                "name"]:
             sort = "id"
         if order == 'desc':
             sort_logic = desc(getattr(Book, sort))
@@ -37,13 +57,24 @@ class BookCollectionResource(Resource):
             sort_logic = asc(getattr(Book, sort))
         books = Book.query.filter(
             Book.name.ilike(keyword),
-            and_(Book.year_published <= max_publication_year, Book.year_published >= min_publication_year),
-            and_(Book.num_of_pages <= max_page_num, Book.num_of_pages >= min_page_num)
-        ).order_by(sort_logic).paginate(page=page, per_page=per_page)
+            and_(
+                Book.year_published <= max_publication_year,
+                Book.year_published >= min_publication_year),
+            and_(
+                Book.num_of_pages <= max_page_num,
+                Book.num_of_pages >= min_page_num)).order_by(sort_logic).paginate(
+            page=page,
+            per_page=per_page)
         return PaginatedBookSchema().dump(books), HTTPStatus.OK
 
 
 class BookResource(Resource):
+    decorators = [
+        limiter.limit(
+            "60/minute",
+            methods=["GET"],
+            error_message="Too many requests")]
+
     @jwt_required()
     @cache.cached()
     def get(self, book_id):
@@ -51,7 +82,9 @@ class BookResource(Resource):
         if not book:
             return {"message": "Book not found!"}, HTTPStatus.NOT_FOUND
 
-        return BookSchema(exclude=["id", "loan_history", "date_donated", "is_available"]).dump(book), HTTPStatus.OK
+        return BookSchema(
+            exclude=[
+                "id", "loan_history", "date_donated", "is_available"]).dump(book), HTTPStatus.OK
 
 
 class BorrowBookResource(Resource):
@@ -62,7 +95,8 @@ class BorrowBookResource(Resource):
             return {"message": "Book not found."}, HTTPStatus.NOT_FOUND
 
         if book.is_available is False:
-            return {"message": "Book is currently unavailable"}, HTTPStatus.NOT_FOUND
+            return {
+                "message": "Book is currently unavailable"}, HTTPStatus.NOT_FOUND
 
         book.is_available = False
         user_id = get_jwt_identity()
@@ -84,7 +118,9 @@ class ReturnBookResource(Resource):
             return {"message": "Book not found."}, HTTPStatus.NOT_FOUND
         user_id = get_jwt_identity()
         loan_detail = BooksBorrowed.query.filter(
-            and_(BooksBorrowed.user_id == user_id, BooksBorrowed.book_id == book_id)).filter_by(
+            and_(
+                BooksBorrowed.user_id == user_id,
+                BooksBorrowed.book_id == book_id)).filter_by(
             date_returned=None).first()
 
         if not loan_detail:
@@ -95,5 +131,3 @@ class ReturnBookResource(Resource):
         db.session.commit()
         clear_cache(f"/books/{book_id}")
         return {"message": "Book returned !"}, HTTPStatus.OK
-
-

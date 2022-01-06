@@ -21,7 +21,8 @@ class CreateAdminUserResource(Resource):
     def post(self):
         json_data = request.get_json()
         try:
-            parsed_data = UserSchema2(exclude=["books_borrowed"]).load(json_data)
+            parsed_data = UserSchema2(
+                exclude=["books_borrowed"]).load(json_data)
         except ValidationError as err:
             return {"message": "Validation Error",
                     "errors": err.messages}, HTTPStatus.BAD_REQUEST
@@ -29,18 +30,20 @@ class CreateAdminUserResource(Resource):
         email = parsed_data.get("email")
 
         if User.check_username(username):
-            return {"message": "Invalid username or username is associated to a different user."}, HTTPStatus.CONFLICT
+            return {
+                "message": "Invalid username or username is associated to a different user."}, HTTPStatus.CONFLICT
 
         if User.check_email(email):
             return {
-                       "message": "Invalid email address or email address is associated to a different user."
-                   }, HTTPStatus.CONFLICT
+                "message": "Invalid email address or email address is associated to a different user."
+            }, HTTPStatus.CONFLICT
 
         new_user = User(role="admin", **parsed_data)
         db.session.add(new_user)
         db.session.commit()
         claims = {"role": new_user.role}
-        access_token = create_access_token(identity=new_user.id, additional_claims=claims)
+        access_token = create_access_token(
+            identity=new_user.id, additional_claims=claims)
         clear_cache("/users")
         return {"access_token": access_token}, HTTPStatus.OK
 
@@ -62,7 +65,8 @@ class AdminUsersCollectionResource(Resource):
         else:
             sort_logic = asc(getattr(User, sort))
 
-        users = User.query.order_by(sort_logic).paginate(page=page, per_page=per_page)
+        users = User.query.order_by(sort_logic).paginate(
+            page=page, per_page=per_page)
         return PaginatedUserSchema().dump(users), HTTPStatus.OK
 
 
@@ -102,10 +106,24 @@ class AdminBooksCollectionResource(Resource):
         "min_page_num": fields.Int(missing=0)
     }, location="querystring")
     @cache.cached(query_string=True)
-    def get(self,
-            page, per_page, order, sort, q, max_publication_year, min_publication_year, min_page_num, max_page_num):
+    def get(
+            self,
+            page,
+            per_page,
+            order,
+            sort,
+            q,
+            max_publication_year,
+            min_publication_year,
+            min_page_num,
+            max_page_num):
         keyword = f"%{q}%"
-        if sort not in ["id", "num_of_pages", "date_donated", "year_published", "name"]:
+        if sort not in [
+            "id",
+            "num_of_pages",
+            "date_donated",
+            "year_published",
+                "name"]:
             sort = "id"
         if order == 'desc':
             sort_logic = desc(getattr(Book, sort))
@@ -113,9 +131,14 @@ class AdminBooksCollectionResource(Resource):
             sort_logic = asc(getattr(Book, sort))
         books = Book.query.filter(
             Book.name.ilike(keyword),
-            and_(Book.year_published <= max_publication_year, Book.year_published >= min_publication_year),
-            and_(Book.num_of_pages <= max_page_num, Book.num_of_pages >= min_page_num)
-        ).order_by(sort_logic).paginate(page=page, per_page=per_page)
+            and_(
+                Book.year_published <= max_publication_year,
+                Book.year_published >= min_publication_year),
+            and_(
+                Book.num_of_pages <= max_page_num,
+                Book.num_of_pages >= min_page_num)).order_by(sort_logic).paginate(
+            page=page,
+            per_page=per_page)
         return PaginatedBookSchema().dump(books), HTTPStatus.OK
 
     @admin_required()
@@ -152,15 +175,21 @@ class AdminBooksCollectionResource(Resource):
             publisher = Publisher(name=publisher_name)
 
         new_book = Book(
-            name=name, num_of_pages=num_of_pages, isbn=isbn, isbn13=isbn13, year_published=year_published,
-            cover_url=cover_url, language=language)
+            name=name,
+            num_of_pages=num_of_pages,
+            isbn=isbn,
+            isbn13=isbn13,
+            year_published=year_published,
+            cover_url=cover_url,
+            language=language)
         new_book.author = author
         new_book.category = category
         new_book.publisher = publisher
         db.session.add(new_book)
         db.session.commit()
         cache.clear()
-        return BookSchema(exclude=["loan_history"]).dump(new_book), HTTPStatus.CREATED
+        return BookSchema(exclude=["loan_history"]).dump(
+            new_book), HTTPStatus.CREATED
 
 
 class AdminBookResource(Resource):
@@ -171,7 +200,7 @@ class AdminBookResource(Resource):
         if not book:
             return {'message': "Book not found"}, HTTPStatus.NOT_FOUND
 
-        return BookSchema(exclude=["id",]).dump(book), HTTPStatus.OK
+        return BookSchema(exclude=["id", ]).dump(book), HTTPStatus.OK
 
     @admin_required()
     def patch(self, book_id):
@@ -182,17 +211,24 @@ class AdminBookResource(Resource):
 
         json_data = request.get_json()
         try:
-            parsed_data = BookSchema(exclude=["author", "publisher", "category"], partial=True).load(json_data)
+            parsed_data = BookSchema(
+                exclude=[
+                    "author",
+                    "publisher",
+                    "category"],
+                partial=True).load(json_data)
 
         except ValidationError as err:
             return {
-                       "messages": "Validation Error",
-                       "errors": [err.messages]
-                   }, HTTPStatus.BAD_REQUEST
+                "messages": "Validation Error",
+                "errors": [err.messages]
+            }, HTTPStatus.BAD_REQUEST
 
         book.name = parsed_data.get("name") or book.name
-        book.year_published = parsed_data.get("year_published") or book.year_published
-        book.num_of_pages = parsed_data.get("num_of_pages") or book.num_of_pages
+        book.year_published = parsed_data.get(
+            "year_published") or book.year_published
+        book.num_of_pages = parsed_data.get(
+            "num_of_pages") or book.num_of_pages
         book.language = parsed_data.get("language") or book.language
         book.cover_url = parsed_data.get("cover_url") or book.cover_url
         book.isbn13 = parsed_data.get("isbn13") or book.isbn13
@@ -222,8 +258,9 @@ class AdminAuthorCollectionResource(Resource):
             sort_logic = asc(getattr(Author, sort))
         else:
             sort_logic = desc(getattr(Author, sort))
-        authors = Author.query.filter(Author.name.ilike(keyword)).order_by(sort_logic).paginate(page=page,
-                                                                                                per_page=per_page)
+        authors = Author.query.filter(
+            Author.name.ilike(keyword)).order_by(sort_logic).paginate(
+            page=page, per_page=per_page)
         return PaginatedAuthorSchema().dump(authors), HTTPStatus.OK
 
     @admin_required()
@@ -233,9 +270,9 @@ class AdminAuthorCollectionResource(Resource):
             parsed_json = AuthorCollectionSchema().load(json_data)
         except ValidationError as err:
             return {
-                       "message": "Validation Error",
-                       "errors": [err.messages]
-                   }, HTTPStatus.BAD_REQUEST
+                "message": "Validation Error",
+                "errors": [err.messages]
+            }, HTTPStatus.BAD_REQUEST
 
         name = parsed_json.get("name")
         description = parsed_json.get("description")
@@ -270,7 +307,8 @@ class AdminAuthorResource(Resource):
                     "error": [err.messages]}, HTTPStatus.BAD_REQUEST
 
         author.name = parsed_data.get("name") or author.name
-        author.description = parsed_data.get("description") or author.description
+        author.description = parsed_data.get(
+            "description") or author.description
         db.session.commit()
         cache.clear()
         return AuthorSchema(exclude=["id"]).dump(author), HTTPStatus.OK
@@ -305,8 +343,9 @@ class AdminPublisherCollectionResource(Resource):
             sort_logic = desc(getattr(Publisher, sort))
         else:
             sort_logic = asc(getattr(Publisher, sort))
-        publishers = Publisher.query.filter(Publisher.name.ilike(keyword)).order_by(sort_logic).paginate(page=page,
-                                                                                                         per_page=per_page)
+        publishers = Publisher.query.filter(
+            Publisher.name.ilike(keyword)).order_by(sort_logic).paginate(
+            page=page, per_page=per_page)
         return PaginatedPublisherSchema().dump(publishers), HTTPStatus.OK
 
     @admin_required()
@@ -316,9 +355,9 @@ class AdminPublisherCollectionResource(Resource):
             parsed_data = PublisherCollectionSchema().load(json_data)
         except ValidationError as err:
             return {
-                       "message": "Validation Error",
-                       "errors": err.messages
-                   }, HTTPStatus.NOT_FOUND
+                "message": "Validation Error",
+                "errors": err.messages
+            }, HTTPStatus.NOT_FOUND
 
         new_publisher = Publisher(**parsed_data)
         db.session.add(new_publisher)
@@ -345,7 +384,8 @@ class AdminPublisherResource(Resource):
 
         json_data = request.get_json()
         try:
-            parsed_data = PublisherCollectionSchema(partial=True).load(json_data)
+            parsed_data = PublisherCollectionSchema(
+                partial=True).load(json_data)
         except ValidationError as err:
             return {"message": "Validation Error",
                     "errors": err.messages}, HTTPStatus.BAD_REQUEST
@@ -369,8 +409,7 @@ class AdminPublisherResource(Resource):
 
 class AdminCategoriesCollectionResource(Resource):
     @admin_required()
-    @use_kwargs(
-        {
+    @use_kwargs({
             "page": fields.Integer(missing=1),
             "per_page": fields.Integer(missing=5),
             "sort": fields.String(missing="id"),
@@ -387,8 +426,9 @@ class AdminCategoriesCollectionResource(Resource):
         else:
             sort_logic = asc(getattr(Category, sort))
 
-        categories = Category.query.filter(Category.name.ilike(keyword)).order_by(sort_logic).paginate(page=page,
-                                                                                                       per_page=per_page)
+        categories = Category.query.filter(
+            Category.name.ilike(keyword)).order_by(sort_logic).paginate(
+            page=page, per_page=per_page)
         return PaginatedCategorySchema().dump(categories), HTTPStatus.OK
 
     @admin_required()
@@ -398,9 +438,9 @@ class AdminCategoriesCollectionResource(Resource):
             parsed_data = CategoryCollectionSchema().load(json_data)
         except ValidationError as err:
             return {
-                       "message": "Validation Error",
-                       "errors": err.messages
-                   }, HTTPStatus.BAD_REQUEST
+                "message": "Validation Error",
+                "errors": err.messages
+            }, HTTPStatus.BAD_REQUEST
 
         new_category = Category(**parsed_data)
         db.session.add(new_category)
@@ -427,7 +467,8 @@ class AdminCategoryResource(Resource):
 
         json_data = request.get_json()
         try:
-            parsed_data = CategoryCollectionSchema(partial=True).load(json_data)
+            parsed_data = CategoryCollectionSchema(
+                partial=True).load(json_data)
         except ValidationError as err:
             return {"message": "Validation Error",
                     "errors": err.messages}, HTTPStatus.BAD_REQUEST

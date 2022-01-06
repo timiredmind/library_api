@@ -8,3 +8,4 @@ class Config:
     SECRET_KEY = os.urandom(16)
     CACHE_TYPE = "SimpleCache"
     CACHE_DEFAULT_TIMEOUT = 300
+    RATELIMIT_HEADERS_ENABLED = True

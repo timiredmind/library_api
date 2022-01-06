@@ -6,10 +6,16 @@ from flask_jwt_extended import jwt_required
 from webargs import fields
 from webargs.flaskparser import use_kwargs
 from sqlalchemy import asc, desc
-from extension import cache
+from extension import cache, limiter
 
 
 class AuthorCollectionResource(Resource):
+    decorators = [
+        limiter.limit(
+            "10/second",
+            methods=["GET"],
+            error_message="Too many requests")]
+
     @jwt_required()
     @use_kwargs(
         {
@@ -28,12 +34,18 @@ class AuthorCollectionResource(Resource):
             sort_logic = asc(getattr(Author, sort))
         else:
             sort_logic = desc(getattr(Author, sort))
-        authors = Author.query.filter(Author.name.ilike(keyword)).order_by(sort_logic).paginate(page=page,
-                                                                                                per_page=per_page)
+        authors = Author.query.filter(
+            Author.name.ilike(keyword)).order_by(sort_logic).paginate(
+            page=page, per_page=per_page)
         return PaginatedAuthorSchema().dump(authors), HTTPStatus.OK
 
 
 class AuthorResource(Resource):
+    decorators = [
+        limiter.limit(
+            "120/minute",
+            error_message="Too many requests")]
+
     @jwt_required()
     @cache.cached()
     def get(self, author_id):
