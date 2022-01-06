@@ -6,6 +6,7 @@ from schemas.book import PaginatedCategorySchema, CategorySchema
 from webargs.flaskparser import use_kwargs
 from webargs import fields
 from sqlalchemy import asc, desc
+from extension import cache
 
 
 class CategoryCollectionResource(Resource):
@@ -18,6 +19,7 @@ class CategoryCollectionResource(Resource):
             "order": fields.String(missing="asc"),
             "q": fields.String(missing="")
         }, location="querystring")
+    @cache.cached(query_string=True)
     def get(self, page, per_page, sort, order, q):
         keyword = f"%{q}%"
         if sort not in ["id", "name"]:
@@ -34,6 +36,7 @@ class CategoryCollectionResource(Resource):
 
 class CategoryResource(Resource):
     @jwt_required()
+    @cache.cached()
     def get(self, category_id):
         category = Category.query.filter_by(id=category_id).first()
         if not category:

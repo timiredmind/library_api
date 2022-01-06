@@ -1,4 +1,4 @@
-from utils import admin_required,generate_token
+from utils import admin_required, clear_cache
 from flask_restful import Resource
 from models.user import User
 from models.book import Book, Category, Publisher, Author
@@ -9,7 +9,7 @@ from webargs.flaskparser import use_kwargs
 from webargs import fields
 from sqlalchemy import asc, desc, and_
 from http import HTTPStatus
-from extension import db
+from extension import db, cache
 from datetime import datetime
 from flask import request
 from marshmallow import ValidationError
@@ -41,6 +41,7 @@ class CreateAdminUserResource(Resource):
         db.session.commit()
         claims = {"role": new_user.role}
         access_token = create_access_token(identity=new_user.id, additional_claims=claims)
+        clear_cache("/users")
         return {"access_token": access_token}, HTTPStatus.OK
 
 
@@ -52,6 +53,7 @@ class AdminUsersCollectionResource(Resource):
         "sort": fields.String(missing="id"),
         "order": fields.String(missing="asc")
     }, location="querystring")
+    @cache.cached(query_string=True)
     def get(self, page, per_page, sort, order):
         if sort not in ["id", "username"]:
             sort = "id"
@@ -66,6 +68,7 @@ class AdminUsersCollectionResource(Resource):
 
 class AdminUsersResource(Resource):
     @admin_required()
+    @cache.cached()
     def get(self, user_id):
         user = User.check_user_id(user_id=user_id)
         if not user:
@@ -81,6 +84,7 @@ class AdminUsersResource(Resource):
             return {"message": "User already deactivated."}, HTTPStatus.CONFLICT
         user.is_active = False
         db.session.commit()
+        clear_cache("/users")
         return "", HTTPStatus.NO_CONTENT
 
 
@@ -97,6 +101,7 @@ class AdminBooksCollectionResource(Resource):
         "max_page_num": fields.Int(missing=5000),
         "min_page_num": fields.Int(missing=0)
     }, location="querystring")
+    @cache.cached(query_string=True)
     def get(self,
             page, per_page, order, sort, q, max_publication_year, min_publication_year, min_page_num, max_page_num):
         keyword = f"%{q}%"
@@ -116,7 +121,6 @@ class AdminBooksCollectionResource(Resource):
     @admin_required()
     def post(self):
         json_data = request.get_json()
-        print(json_data)
         try:
             parsed_data = BookSchema().load(json_data)
         except ValidationError as errors:
@@ -155,17 +159,19 @@ class AdminBooksCollectionResource(Resource):
         new_book.publisher = publisher
         db.session.add(new_book)
         db.session.commit()
+        cache.clear()
         return BookSchema(exclude=["loan_history"]).dump(new_book), HTTPStatus.CREATED
 
 
 class AdminBookResource(Resource):
     @admin_required()
+    @cache.cached()
     def get(self, book_id):
         book = Book.query.filter_by(id=book_id).first()
         if not book:
             return {'message': "Book not found"}, HTTPStatus.NOT_FOUND
 
-        return BookSchema().dump(book), HTTPStatus.OK
+        return BookSchema(exclude=["id",]).dump(book), HTTPStatus.OK
 
     @admin_required()
     def patch(self, book_id):
@@ -193,7 +199,8 @@ class AdminBookResource(Resource):
         book.isbn = parsed_data.get("isbn") or book.isbn
 
         db.session.commit()
-        return BookSchema().dump(book), HTTPStatus.OK
+        cache.clear()
+        return BookSchema(exclude=["id"]).dump(book), HTTPStatus.OK
 
 
 class AdminAuthorCollectionResource(Resource):
@@ -206,6 +213,7 @@ class AdminAuthorCollectionResource(Resource):
             "sort": fields.String(missing="id"),
             "q": fields.String(missing="")
         }, location="querystring")
+    @cache.cached(query_string=True)
     def get(self, page, per_page, order, sort, q):
         keyword = f"%{q}%"
         if sort not in ["id", "name"]:
@@ -234,12 +242,13 @@ class AdminAuthorCollectionResource(Resource):
         new_author = Author(name=name, description=description)
         db.session.add(new_author)
         db.session.commit()
-
+        clear_cache("/authors")
         return AuthorCollectionSchema().dump(new_author), HTTPStatus.CREATED
 
 
 class AdminAuthorResource(Resource):
     @admin_required()
+    @cache.cached()
     def get(self, author_id):
         author = Author.query.filter_by(id=author_id).first()
         if not author:
@@ -263,6 +272,7 @@ class AdminAuthorResource(Resource):
         author.name = parsed_data.get("name") or author.name
         author.description = parsed_data.get("description") or author.description
         db.session.commit()
+        cache.clear()
         return AuthorSchema(exclude=["id"]).dump(author), HTTPStatus.OK
 
     @admin_required()
@@ -273,6 +283,7 @@ class AdminAuthorResource(Resource):
 
         db.session.delete(author)
         db.session.commit()
+        cache.clear()
         return "", HTTPStatus.NO_CONTENT
 
 
@@ -285,6 +296,7 @@ class AdminPublisherCollectionResource(Resource):
         "sort": fields.String(missing="id"),
         "q": fields.String(missing="")
     }, location="querystring")
+    @cache.cached(query_string=True)
     def get(self, page, per_page, sort, order, q):
         keyword = f"%{q}%"
         if sort not in ["id", "name"]:
@@ -311,11 +323,13 @@ class AdminPublisherCollectionResource(Resource):
         new_publisher = Publisher(**parsed_data)
         db.session.add(new_publisher)
         db.session.commit()
+        clear_cache("/publishers")
         return PublisherCollectionSchema().dump(new_publisher), HTTPStatus.CREATED
 
 
 class AdminPublisherResource(Resource):
     @admin_required()
+    @cache.cached()
     def get(self, publisher_id):
         publisher = Publisher.query.filter_by(id=publisher_id).first()
         if not publisher:
@@ -338,16 +352,18 @@ class AdminPublisherResource(Resource):
 
         publisher.name = parsed_data.get("name") or publisher.name
         db.session.commit()
+        cache.clear()
         return PublisherSchema(exclude=["id"]).dump(publisher), HTTPStatus.OK
 
     @admin_required()
     def delete(self, publisher_id):
         publisher = Publisher.query.filter_by(id=publisher_id).first()
         if not publisher:
-            return {"message": "Publisher not found"}, HTTPStatus.OK
+            return {"message": "Publisher not found"}, HTTPStatus.NOT_FOUND
 
         db.session.delete(publisher)
         db.session.commit()
+        cache.clear()
         return "", HTTPStatus.NO_CONTENT
 
 
@@ -361,6 +377,7 @@ class AdminCategoriesCollectionResource(Resource):
             "order": fields.String(missing="asc"),
             "q": fields.String(missing="")
         }, location="querystring")
+    @cache.cached()
     def get(self, page, per_page, sort, order, q):
         keyword = f"%{q}%"
         if sort not in ["id", "name"]:
@@ -388,11 +405,13 @@ class AdminCategoriesCollectionResource(Resource):
         new_category = Category(**parsed_data)
         db.session.add(new_category)
         db.session.commit()
+        clear_cache("/category")
         return CategoryCollectionSchema().dump(new_category), HTTPStatus.CREATED
 
 
 class AdminCategoryResource(Resource):
     @admin_required()
+    @cache.cached()
     def get(self, category_id):
         category = Category.query.filter_by(id=category_id).first()
         if not category:
@@ -415,6 +434,7 @@ class AdminCategoryResource(Resource):
 
         category.name = parsed_data.get("name") or category.name
         db.session.commit()
+        cache.clear()
         return CategoryCollectionSchema().dump(category), HTTPStatus.OK
 
     @admin_required()
@@ -425,4 +445,5 @@ class AdminCategoryResource(Resource):
 
         db.session.delete(category)
         db.session.commit()
+        cache.clear()
         return "", HTTPStatus.NO_CONTENT

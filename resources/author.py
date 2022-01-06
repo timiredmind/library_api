@@ -5,7 +5,8 @@ from http import HTTPStatus
 from flask_jwt_extended import jwt_required
 from webargs import fields
 from webargs.flaskparser import use_kwargs
-from sqlalchemy import asc, desc, and_
+from sqlalchemy import asc, desc
+from extension import cache
 
 
 class AuthorCollectionResource(Resource):
@@ -18,6 +19,7 @@ class AuthorCollectionResource(Resource):
             "sort": fields.String(missing="id"),
             "q": fields.String(missing="")
         }, location="querystring")
+    @cache.cached(query_string=True)
     def get(self, page, per_page, order, sort, q):
         keyword = f"%{q}%"
         if sort not in ["id", "name"]:
@@ -33,6 +35,7 @@ class AuthorCollectionResource(Resource):
 
 class AuthorResource(Resource):
     @jwt_required()
+    @cache.cached()
     def get(self, author_id):
         author = Author.query.filter_by(id=author_id).first()
         if not author:

@@ -6,3 +6,5 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     DEBUG = True
     SECRET_KEY = os.urandom(16)
+    CACHE_TYPE = "SimpleCache"
+    CACHE_DEFAULT_TIMEOUT = 300

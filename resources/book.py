@@ -1,6 +1,6 @@
 from datetime import datetime
 from http import HTTPStatus
-from extension import db
+from extension import db, cache
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_restful import Resource
 from sqlalchemy import asc, desc, and_
@@ -9,6 +9,7 @@ from webargs.flaskparser import use_kwargs
 from models.user import User
 from models.book import Book, BooksBorrowed
 from schemas.book import PaginatedBookSchema, BookSchema
+from utils import clear_cache
 
 
 class BookCollectionResource(Resource):
@@ -24,6 +25,7 @@ class BookCollectionResource(Resource):
         "max_page_num": fields.Int(missing=5000),
         "min_page_num": fields.Int(missing=0)
     }, location="querystring")
+    @cache.cached(query_string=True)
     def get(self,
             page, per_page, order, sort, q, max_publication_year, min_publication_year, min_page_num, max_page_num):
         keyword = f"%{q}%"
@@ -43,6 +45,7 @@ class BookCollectionResource(Resource):
 
 class BookResource(Resource):
     @jwt_required()
+    @cache.cached()
     def get(self, book_id):
         book = Book.query.filter_by(id=book_id).first()
         if not book:
@@ -69,6 +72,7 @@ class BorrowBookResource(Resource):
         loan_detail.user = user
         db.session.add(loan_detail)
         db.session.commit()
+        clear_cache(f"/books/{book_id}")
         return "", HTTPStatus.NO_CONTENT
 
 
@@ -89,6 +93,7 @@ class ReturnBookResource(Resource):
         book.is_available = True
         loan_detail.date_returned = datetime.now()
         db.session.commit()
+        clear_cache(f"/books/{book_id}")
         return {"message": "Book returned !"}, HTTPStatus.OK
 
 

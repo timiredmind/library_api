@@ -1,8 +1,8 @@
-from extension import db, migrate, jwt
-from flask import Flask, url_for
+from extension import db, migrate, jwt, cache
+from flask import Flask
 from config import Config
 from flask_restful import Api
-from resources.user import CreateUserResource, UserLoginResource, UserProfileResource, UserActivationResource
+from resources.user import CreateUserResource, UserLoginResource, UserProfileResource
 from resources.book import BookCollectionResource, BookResource, BorrowBookResource, ReturnBookResource
 from resources.author import AuthorCollectionResource, AuthorResource
 from resources.publisher import PublisherCollectionResource, PublisherResource
@@ -19,6 +19,7 @@ def register_extensions(app):
     migrate.init_app(app, db)
     # Initialize Flask-JWT-Extended extension
     jwt.init_app(app)
+    cache.init_app(app)
 
 
 def register_resources(app):
@@ -26,7 +27,6 @@ def register_resources(app):
     api.add_resource(CreateUserResource, "/users/register")
     api.add_resource(UserLoginResource, "/login")
     api.add_resource(UserProfileResource, "/users/profile")
-    api.add_resource(UserActivationResource, "/users/activate/<string:token>")
     api.add_resource(BookCollectionResource, "/books")
     api.add_resource(BookResource, "/books/<int:book_id>")
     api.add_resource(AuthorCollectionResource, "/authors")
@@ -58,6 +58,17 @@ def create_app():
 
     register_extensions(app)
     register_resources(app)
+
+    @app.before_request
+    def before_request():
+        print("BEFORE REQUEST".center(30, "="))
+        print(cache.cache._cache.keys())
+
+    @app.after_request
+    def after_request(response):
+        print("AFTER REQUEST".center(35, "="))
+        print(cache.cache._cache.keys())
+        return response
 
     return app
 

@@ -4,7 +4,7 @@ from functools import wraps
 from http import HTTPStatus
 from urllib.parse import urlencode
 from flask import request
-
+from extension import cache
 
 def hash_password(plain_text):
     hashed_password = bcrypt.using(rounds=13).hash(plain_text)
@@ -35,3 +35,9 @@ def generate_url_link(page):
     query_args = request.args.to_dict()
     query_args["page"] = page
     return f"{request.base_url}?{urlencode(query_args)}"
+
+
+def clear_cache(key):
+    keys = [cache_key for cache_key in cache.cache._cache.keys() if key in cache_key]
+    cache.delete_many(*keys)
+

@@ -7,10 +7,6 @@ from models.user import User
 from extension import db
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from utils import verify_password
-from flask import request, url_for
-from mailgun import MailGunApi
-from utils import generate_token, verify_token
-import os
 
 
 class CreateUserResource(Resource):
@@ -68,25 +64,25 @@ class UserLoginResource(Resource):
         return {"access_token": access_token}, HTTPStatus.OK
 
 
-class UserActivationResource(Resource):
-    def get(self, token):
-
-        email = verify_token(token=token, salt="activate")
-
-        if email is False:
-            return {"message": "invalid token or token expired"}, HTTPStatus.BAD_REQUEST
-
-        user = User.check_email(email)
-
-        if not user:
-            return {"message": "User not found"}, HTTPStatus.NOT_FOUND
-
-        if user.is_active:
-            return {"message": "The user account is already activated"}, HTTPStatus.BAD_REQUEST
-        user.is_active = True
-        db.session.commit()
-
-        return {}, HTTPStatus.NO_CONTENT
+# class UserActivationResource(Resource):
+#     def get(self, token):
+#
+#         email = verify_token(token=token, salt="activate")
+#
+#         if email is False:
+#             return {"message": "invalid token or token expired"}, HTTPStatus.BAD_REQUEST
+#
+#         user = User.check_email(email)
+#
+#         if not user:
+#             return {"message": "User not found"}, HTTPStatus.NOT_FOUND
+#
+#         if user.is_active:
+#             return {"message": "The user account is already activated"}, HTTPStatus.BAD_REQUEST
+#         user.is_active = True
+#         db.session.commit()
+#
+#         return {}, HTTPStatus.NO_CONTENT
 
 
 class UserProfileResource(Resource):
