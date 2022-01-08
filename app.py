@@ -1,6 +1,6 @@
 from extension import db, migrate, jwt, cache, limiter
-from flask import Flask
-from config import Config
+from flask import Flask, request
+from config import Config, TestingConfig
 from flask_restful import Api
 from resources.user import CreateUserResource, UserLoginResource, UserProfileResource
 from resources.book import BookCollectionResource, BookResource, BorrowBookResource, ReturnBookResource
@@ -54,15 +54,23 @@ def register_resources(app):
         "/admin/category/<int:category_id>")
 
 
-def create_app():
+def create_app(env="development"):
     # Create an instance of Flask application
     app = Flask(__name__)
     # Load configurations from the Config class
-    app.config.from_object(Config)
+    if env == "testing":
+        app.config.from_object(TestingConfig)
+    else:
+        app.config.from_object(Config)
 
     register_extensions(app)
     register_resources(app)
 
+    # Ease rate limit for requests from ip address 127.0.0.1 or localhost
+    @limiter.request_filter
+    def ip_whitelist():
+        return request.remote_addr == "127.0.0.1"
+    
     return app
 
 

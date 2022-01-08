@@ -38,7 +38,7 @@ class CreateUserResource(Resource):
         claims = {"role": new_user.role}
         access_token = create_access_token(
             identity=new_user.id, additional_claims=claims)
-        return {"access_token": access_token}, HTTPStatus.OK
+        return {"access_token": access_token}, HTTPStatus.CREATED
 
 
 class UserLoginResource(Resource):
@@ -49,19 +49,15 @@ class UserLoginResource(Resource):
         except ValidationError as errors:
             return {
                 "message": "Validation Error",
-                "errors": [errors.messages]
+                "errors": errors.messages
             }, HTTPStatus.BAD_REQUEST
 
         username = json_data.get("username")
         plain_text = json_data.get("password")
 
         user = User.check_username(username)
-        if (not user) or (not verify_password(plain_text, user.password)):
+        if (not user) or (not verify_password(plain_text, user.password)) or user.is_active is False:
             return "Invalid username or password.", HTTPStatus.UNAUTHORIZED
-
-        if not user.is_active:
-            return {
-                "message": "The user account is not yet activated"}, HTTPStatus.FORBIDDEN
 
         claims = {"role": user.role}
         access_token = create_access_token(

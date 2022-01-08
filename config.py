@@ -9,3 +9,9 @@ class Config:
     CACHE_TYPE = "SimpleCache"
     CACHE_DEFAULT_TIMEOUT = 300
     RATELIMIT_HEADERS_ENABLED = True
+
+
+class TestingConfig(Config):
+    TESTING = True
+    # Use an in-memory database
+    SQLALCHEMY_DATABASE_URI = "sqlite://"
