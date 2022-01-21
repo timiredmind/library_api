@@ -4,8 +4,9 @@ from schemas.book import UserSchema, UserSchema2
 from marshmallow import ValidationError
 from http import HTTPStatus
 from models.user import User
+from models.blocklist import TokenBlockList
 from extension import db
-from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
+from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity, get_jwt
 from utils import verify_password
 
 
@@ -13,6 +14,8 @@ class CreateUserResource(Resource):
     def post(self):
         # Retrieve JSON data from the request
         json_data = request.get_json()
+        print(json_data)
+        print(json_data.get("password"))
         # Deserialize and validate the JSON data
         try:
             parsed_data = UserSchema().load(json_data)
@@ -107,5 +110,19 @@ class UserProfileResource(Resource):
         user_id = get_jwt_identity()
         user = User.check_user_id(user_id)
         user.is_active = False
+        db.session.add(TokenBlockList(jti=get_jwt()["jti"], user=user, description="User Profile deactivated"))
         db.session.commit()
         return "", HTTPStatus.NO_CONTENT
+
+
+class UserLogoutResource(Resource):
+    @jwt_required()
+    def delete(self):
+        jti = get_jwt()["jti"]
+        user_id = get_jwt_identity()
+        user = User.check_user_id(user_id=user_id)
+        db.session.add(TokenBlockList(jti=jti, user=user, description="User logged out"))
+        db.session.commit()
+        return {"msg":"User logged out successfully"}, HTTPStatus.OK
+
+

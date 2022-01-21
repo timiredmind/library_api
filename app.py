@@ -1,8 +1,9 @@
 from extension import db, migrate, jwt, cache, limiter
+from models.blocklist import TokenBlockList
 from flask import Flask, request
 from config import Config, TestingConfig
 from flask_restful import Api
-from resources.user import CreateUserResource, UserLoginResource, UserProfileResource
+from resources.user import CreateUserResource, UserLoginResource, UserProfileResource, UserLogoutResource
 from resources.book import BookCollectionResource, BookResource, BorrowBookResource, ReturnBookResource
 from resources.author import AuthorCollectionResource, AuthorResource
 from resources.publisher import PublisherCollectionResource, PublisherResource
@@ -27,6 +28,7 @@ def register_resources(app):
     api = Api(app)
     api.add_resource(CreateUserResource, "/users/register")
     api.add_resource(UserLoginResource, "/login")
+    api.add_resource(UserLogoutResource, "/logout")
     api.add_resource(UserProfileResource, "/users/profile")
     api.add_resource(BookCollectionResource, "/books")
     api.add_resource(BookResource, "/books/<int:book_id>")
@@ -70,6 +72,12 @@ def create_app(env="development"):
     @limiter.request_filter
     def ip_whitelist():
         return request.remote_addr == "127.0.0.1"
+
+    @jwt.token_in_blocklist_loader
+    def check_if_token_revoked(jwt_header, jwt_payload):
+        jti = jwt_payload["jti"]
+        token = db.session.query(TokenBlockList).filter_by(jti=jti).scalar()
+        return token is not None
     
     return app
 
